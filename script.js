@@ -126,23 +126,27 @@ async function sendToAPI(userMessage) {
       }
     }
 
+    // Create the request payload
     const requestBody = {
       messages: conversationHistory,
     };
 
+    // Ensure we have a valid JSON string
+    const jsonBody = JSON.stringify(requestBody);
+
     console.log("Sending request to:", CLOUDFLARE_WORKER_URL);
-    console.log("Request body:", JSON.stringify(requestBody, null, 2));
+    console.log("Request body:", jsonBody);
 
     const response = await fetch(CLOUDFLARE_WORKER_URL, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify(requestBody),
+      body: jsonBody,
     });
 
     console.log("Response status:", response.status);
-    console.log("Response headers:", response.headers);
+    console.log("Response headers:", Array.from(response.headers.entries()));
 
     if (!response.ok) {
       const errorText = await response.text();
@@ -164,6 +168,7 @@ async function sendToAPI(userMessage) {
       throw new Error("Invalid JSON response from server");
     }
 
+    // Handle the response
     if (data.choices && data.choices[0] && data.choices[0].message) {
       const aiResponse = data.choices[0].message.content;
 
