@@ -71,13 +71,25 @@ function addMessage(message, isUser = false) {
   const messageDiv = document.createElement("div");
   messageDiv.className = `msg ${isUser ? "user" : "ai"}`;
 
+  // Create avatar
+  const avatar = document.createElement("div");
+  avatar.className = "msg-avatar";
+  avatar.textContent = isUser ? "U" : "L";
+
   // Create message bubble
   const bubble = document.createElement("div");
   bubble.className = "msg-bubble";
   bubble.textContent = message;
 
   // Append elements in correct order
-  messageDiv.appendChild(bubble);
+  if (isUser) {
+    messageDiv.appendChild(bubble);
+    messageDiv.appendChild(avatar);
+  } else {
+    messageDiv.appendChild(avatar);
+    messageDiv.appendChild(bubble);
+  }
+
   chatWindow.appendChild(messageDiv);
   chatWindow.scrollTop = chatWindow.scrollHeight;
 }
@@ -177,9 +189,16 @@ chatForm.addEventListener("submit", async (e) => {
   // Show loading message
   const loadingDiv = document.createElement("div");
   loadingDiv.className = "msg ai";
+
+  const loadingAvatar = document.createElement("div");
+  loadingAvatar.className = "msg-avatar";
+  loadingAvatar.textContent = "L";
+
   const loadingBubble = document.createElement("div");
   loadingBubble.className = "msg-bubble";
   loadingBubble.innerHTML = '<span class="loading-dots">Thinking</span>';
+
+  loadingDiv.appendChild(loadingAvatar);
   loadingDiv.appendChild(loadingBubble);
   chatWindow.appendChild(loadingDiv);
   chatWindow.scrollTop = chatWindow.scrollHeight;
