@@ -7,16 +7,42 @@ const chatWindow = document.getElementById("chatWindow");
 const WORKER_URL = "https://loreal-chatbox.cindytram2604.workers.dev/";
 
 // Conversation history
-let conversationHistory = [];
+let conversationHistory = [
+  {
+    role: "system",
+    content: `You are a L'Oréal Beauty Assistant chatbot. You ONLY help with L'Oréal products, beauty routines, skincare, makeup, haircare, and fragrance recommendations. 
+
+Your expertise includes:
+- L'Oréal makeup products (foundations, lipsticks, eyeshadows, etc.)
+- L'Oréal skincare lines (moisturizers, serums, cleansers, etc.)
+- L'Oréal haircare products (shampoos, conditioners, styling products, etc.)
+- L'Oréal fragrances
+- Personalized beauty routines and recommendations
+- Application tips and techniques
+- Product comparisons within L'Oréal's range
+
+IMPORTANT RULES:
+1. ONLY answer questions related to L'Oréal products, beauty, skincare, makeup, haircare, and fragrances
+2. If asked about non-L'Oréal products, politely redirect to L'Oréal alternatives
+3. If asked about unrelated topics (weather, sports, general knowledge, etc.), politely decline and ask how you can help with L'Oréal beauty products
+4. Be friendly, knowledgeable, and helpful
+5. Keep responses conversational but informative
+6. Always promote L'Oréal's brand values and quality
+
+Remember: You represent L'Oréal's commitment to beauty and innovation. Stay focused on helping users discover their perfect L'Oréal products and routines.`,
+  },
+];
 
 // System message to guide AI responses
 const systemMessage = {
-  role: "system", 
-  content: "You are a L'Oréal beauty assistant. Only answer questions about L'Oréal products, beauty routines, and makeup tips. Keep responses under 100 words and focus on L'Oréal product recommendations. If asked about non-L'Oréal topics, politely redirect to L'Oréal products. Be helpful, friendly, and concise."
+  role: "system",
+  content:
+    "You are a L'Oréal beauty assistant. Only answer questions about L'Oréal products, beauty routines, and makeup tips. Keep responses under 100 words and focus on L'Oréal product recommendations. If asked about non-L'Oréal topics, politely redirect to L'Oréal products. Be helpful, friendly, and concise.",
 };
 
 // Set initial message
-chatWindow.textContent = "👋 Hello! I'm your L'Oréal Beauty Assistant. Ask me about L'Oréal products and beauty tips!";
+chatWindow.textContent =
+  "👋 Hello! I'm your L'Oréal Beauty Assistant. Ask me about L'Oréal products and beauty tips!";
 
 /* Add message to chat window */
 function addMessage(message, isUser = false) {
@@ -84,7 +110,7 @@ chatForm.addEventListener("submit", async (e) => {
 
       // Add AI response to conversation history
       conversationHistory.push({ role: "assistant", content: aiMessage });
-      
+
       // Keep conversation history manageable (last 10 messages)
       if (conversationHistory.length > 10) {
         conversationHistory = conversationHistory.slice(-10);
