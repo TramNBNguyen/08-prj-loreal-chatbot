@@ -2,11 +2,13 @@
 const chatForm = document.getElementById("chatForm");
 const userInput = document.getElementById("userInput");
 const chatWindow = document.getElementById("chatWindow");
+const latestQuestion = document.getElementById("latestQuestion");
+const questionText = document.getElementById("questionText");
 
 // Your Cloudflare Worker URL
 const WORKER_URL = "https://loreal-chatbox.cindytram2604.workers.dev/";
 
-// Conversation history
+// Conversation history with user context
 let conversationHistory = [
   {
     role: "system",
@@ -28,29 +30,120 @@ IMPORTANT RULES:
 4. Be friendly, knowledgeable, and helpful
 5. Keep responses conversational but informative
 6. Always promote L'Oréal's brand values and quality
+7. Remember user preferences and past questions to provide personalized recommendations
 
 Remember: You represent L'Oréal's commitment to beauty and innovation. Stay focused on helping users discover their perfect L'Oréal products and routines.`,
   },
 ];
 
+// User context for personalized interactions
+let userContext = {
+  name: null,
+  skinType: null,
+  preferences: [],
+  previousQuestions: [],
+  currentSession: new Date().toISOString()
+};
+
 // System message to guide AI responses
 const systemMessage = {
   role: "system",
-  content:
-    "You are a L'Oréal beauty assistant. Only answer questions about L'Oréal products, beauty routines, and makeup tips. Keep responses under 100 words and focus on L'Oréal product recommendations. If asked about non-L'Oréal topics, politely redirect to L'Oréal products. Be helpful, friendly, and concise.",
+  content: `You are a L'Oréal beauty assistant. Only answer questions about L'Oréal products, beauty routines, and makeup tips. 
+
+Context about the user:
+- Name: ${userContext.name || 'Not provided'}
+- Skin type: ${userContext.skinType || 'Not specified'}
+- Previous preferences: ${userContext.preferences.join(', ') || 'None noted'}
+- Session started: ${userContext.currentSession}
+
+Use this context to provide personalized recommendations. If the user mentions their name, skin type, or preferences, remember these details for future interactions. Keep responses under 100 words and focus on L'Oréal product recommendations. If asked about non-L'Oréal topics, politely redirect to L'Oréal products. Be helpful, friendly, and concise.`,
 };
 
-// Set initial message
-chatWindow.textContent =
-  "👋 Hello! I'm your L'Oréal Beauty Assistant. Ask me about L'Oréal products and beauty tips!";
+// Set initial welcome message
+function setInitialMessage() {
+  const welcomeMessage = "👋 Hello! I'm your L'Oréal Beauty Assistant. Ask me about L'Oréal products and beauty tips! Feel free to tell me your name and skin type for personalized recommendations.";
+  addMessage(welcomeMessage, false);
+}
 
-/* Add message to chat window */
+/* Add message to chat window with bubble design */
 function addMessage(message, isUser = false) {
   const messageDiv = document.createElement("div");
   messageDiv.className = `msg ${isUser ? "user" : "ai"}`;
-  messageDiv.textContent = message;
+  
+  // Create avatar
+  const avatar = document.createElement("div");
+  avatar.className = "msg-avatar";
+  avatar.textContent = isUser ? "U" : "L";
+  
+  // Create message bubble
+  const bubble = document.createElement("div");
+  bubble.className = "msg-bubble";
+  bubble.textContent = message;
+  
+  // Append elements in correct order
+  if (isUser) {
+    messageDiv.appendChild(bubble);
+    messageDiv.appendChild(avatar);
+  } else {
+    messageDiv.appendChild(avatar);
+    messageDiv.appendChild(bubble);
+  }
+  
   chatWindow.appendChild(messageDiv);
   chatWindow.scrollTop = chatWindow.scrollHeight;
+}
+
+/* Update latest question display */
+function updateLatestQuestion(question) {
+  questionText.textContent = question;
+  latestQuestion.style.display = "block";
+}
+
+/* Extract user context from message */
+function extractUserContext(message) {
+  const lowerMessage = message.toLowerCase();
+  
+  // Extract name (simple patterns)
+  const namePatterns = [
+    /my name is ([a-zA-Z]+)/i,
+    /i'm ([a-zA-Z]+)/i,
+    /i am ([a-zA-Z]+)/i,
+    /call me ([a-zA-Z]+)/i
+  ];
+  
+  namePatterns.forEach(pattern => {
+    const match = message.match(pattern);
+    if (match && match[1]) {
+      userContext.name = match[1];
+    }
+  });
+  
+  // Extract skin type
+  const skinTypes = ['oily', 'dry', 'combination', 'sensitive', 'normal', 'acne-prone'];
+  skinTypes.forEach(type => {
+    if (lowerMessage.includes(type)) {
+      userContext.skinType = type;
+    }
+  });
+  
+  // Extract preferences
+  const preferences = ['anti-aging', 'hydrating', 'brightening', 'matte', 'dewy', 'long-lasting'];
+  preferences.forEach(pref => {
+    if (lowerMessage.includes(pref) && !userContext.preferences.includes(pref)) {
+      userContext.preferences.push(pref);
+    }
+  });
+  
+  // Add to previous questions
+  userContext.previousQuestions.push({
+    question: message,
+    timestamp: new Date().toISOString()
+  });
+  
+  // Keep only last 5 questions
+  if (userContext.previousQuestions.length > 5) {
+    userContext.previousQuestions = userContext.previousQuestions.slice(-5);
+  }
 }
 
 /* Handle form submit */
@@ -59,6 +152,12 @@ chatForm.addEventListener("submit", async (e) => {
 
   const message = userInput.value.trim();
   if (!message) return;
+
+  // Update latest question display
+  updateLatestQuestion(message);
+
+  // Extract user context
+  extractUserContext(message);
 
   // Add user message to chat
   addMessage(message, true);
@@ -72,13 +171,38 @@ chatForm.addEventListener("submit", async (e) => {
   // Show loading message
   const loadingDiv = document.createElement("div");
   loadingDiv.className = "msg ai";
-  loadingDiv.textContent = "Thinking...";
+  
+  const loadingAvatar = document.createElement("div");
+  loadingAvatar.className = "msg-avatar";
+  loadingAvatar.textContent = "L";
+  
+  const loadingBubble = document.createElement("div");
+  loadingBubble.className = "msg-bubble";
+  loadingBubble.innerHTML = '<span class="loading-dots">Thinking</span>';
+  
+  loadingDiv.appendChild(loadingAvatar);
+  loadingDiv.appendChild(loadingBubble);
   chatWindow.appendChild(loadingDiv);
   chatWindow.scrollTop = chatWindow.scrollHeight;
 
   try {
-    // Prepare messages with system instruction
-    const messages = [systemMessage, ...conversationHistory];
+    // Update system message with current user context
+    const updatedSystemMessage = {
+      role: "system",
+      content: `You are a L'Oréal beauty assistant. Only answer questions about L'Oréal products, beauty routines, and makeup tips. 
+
+Context about the user:
+- Name: ${userContext.name || 'Not provided'}
+- Skin type: ${userContext.skinType || 'Not specified'}
+- Previous preferences: ${userContext.preferences.join(', ') || 'None noted'}
+- Recent questions: ${userContext.previousQuestions.map(q => q.question).join('; ') || 'None'}
+- Session started: ${userContext.currentSession}
+
+Use this context to provide personalized recommendations and remember past interactions. If the user mentions their name, skin type, or preferences, acknowledge and use these details. Keep responses under 100 words and focus on L'Oréal product recommendations. If asked about non-L'Oréal topics, politely redirect to L'Oréal products. Be helpful, friendly, and concise.`,
+    };
+
+    // Prepare messages with updated system instruction
+    const messages = [updatedSystemMessage, ...conversationHistory];
 
     const requestBody = {
       messages: messages,
@@ -111,9 +235,9 @@ chatForm.addEventListener("submit", async (e) => {
       // Add AI response to conversation history
       conversationHistory.push({ role: "assistant", content: aiMessage });
 
-      // Keep conversation history manageable (last 10 messages)
-      if (conversationHistory.length > 10) {
-        conversationHistory = conversationHistory.slice(-10);
+      // Keep conversation history manageable (last 12 messages including system context)
+      if (conversationHistory.length > 12) {
+        conversationHistory = [conversationHistory[0], ...conversationHistory.slice(-11)];
       }
     } else if (data.error) {
       throw new Error(`API Error: ${data.error.message || "Unknown error"}`);
@@ -127,5 +251,9 @@ chatForm.addEventListener("submit", async (e) => {
     }
 
     addMessage(`Sorry, I'm having trouble connecting. Please try again.`);
+    console.error("Chat error:", error);
   }
 });
+
+// Initialize the chat
+setInitialMessage();
